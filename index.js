@@ -14,8 +14,10 @@ import {
 } from 'ol/style';
 import View from 'ol/View';
 import { fromLonLat } from 'ol/proj';
-import Point from 'ol/geom/Point';
-import Polygon from 'ol/geom/Polygon';
+import {
+  Point,
+  Polygon,
+} from 'ol/geom';
 
 import { Delaunay } from 'd3-delaunay';
 
@@ -28,10 +30,10 @@ const DEFAULT_VIEW = {
 }
 
 const BOUNDING_BOX = {
-  left: -123.25540036,
-  right: -122.71461074,
-  top: 49.3386934,
-  bottom: 49.1396771,
+  xmin: -123.25540036,
+  xmax: -122.71461074,
+  ymin: 49.1396771,
+  ymax: 49.3386934,
 }
 
 function drawMap($root) {
@@ -50,71 +52,48 @@ function drawMap($root) {
 }
 
 function computeVoronoiPolygons() {
-
-  console.log('bbox: ', BOUNDING_BOX);
-
-  const bboxPoly = new Feature({
-    type: 'polygon',
-    geometry: new Polygon([
-      [
-        fromLonLat([BOUNDING_BOX.left, BOUNDING_BOX.bottom]),
-        fromLonLat([BOUNDING_BOX.right, BOUNDING_BOX.bottom]),
-        fromLonLat([BOUNDING_BOX.right, BOUNDING_BOX.top]),
-        fromLonLat([BOUNDING_BOX.left, BOUNDING_BOX.top]),
-        fromLonLat([BOUNDING_BOX.left, BOUNDING_BOX.bottom]),
-      ]
-    ]),
-  });
-
   const sites = stations.map(({ lat, lon }) => [lon, lat]);
-
-  console.log('sites: ', sites);
-
   const delaunay = Delaunay.from(sites);
-  console.log('delaunay: ', delaunay)
+  const voronoi = delaunay.voronoi([BOUNDING_BOX.xmin, BOUNDING_BOX.ymin, BOUNDING_BOX.xmax, BOUNDING_BOX.ymax]);
 
-  const polygons = [];
-  const { triangles, points } = delaunay;
-  const numTriangles = triangles.length / 3;
-  for (let i = 0; i < numTriangles; i++) {
-    const t0 = triangles[i * 3 + 0];
-    const t1 = triangles[i * 3 + 1];
-    const t2 = triangles[i * 3 + 2];
+  const cellPolygons = voronoi.cellPolygons();
+  const cellFeatures = [];
+  for (const cellPolygon of cellPolygons) {
+    console.log('cellPolygon: ', cellPolygon);
+    const vertices = [];
+    for (const p of cellPolygon) {
+      console.log('p: ', p);
+      vertices.push(fromLonLat(p));
+    }
 
-    const point0 = [points[t0 * 2], points[t0 * 2 + 1]]
-    const point1 = [points[t1 * 2], points[t1 * 2 + 1]]
-    const point2 = [points[t2 * 2], points[t2 * 2 + 1]]
-
-    const polygon = new Feature({
-      type: 'polygon',
-      geometry: new Polygon([[
-        fromLonLat(point0),
-        fromLonLat(point1),
-        fromLonLat(point2),
-      ]]),
+    const cellFeature = new Feature({
+      type: 'cell',
+      geometry: new Polygon([
+        vertices,
+      ])
     });
 
-    polygons.push(polygon);
+    cellFeatures.push(cellFeature);
   }
 
-  return { bboxPoly, polygons, points: [] };
+  return { cells: cellFeatures };
 }
 
 function buildVectorLayer() {
-  const markers = [];
+  const stationMarkers = [];
   for (const station of stations) {
     const marker = new Feature({
-      type: 'marker',
+      type: 'station',
       geometry: new Point(fromLonLat([station.lon, station.lat])),
     });
 
-    markers.push(marker);
+    stationMarkers.push(marker);
   }
 
-  const { bboxPoly, polygons: voronoiCells, points } = computeVoronoiPolygons();
+  const { cells } = computeVoronoiPolygons();
 
   const styles = {
-    'marker': new Style({
+    'station': new Style({
       image: new Circle({
         radius: 7,
         fill: new Fill({ color: 'black' }),
@@ -124,30 +103,20 @@ function buildVectorLayer() {
         }),
       }),
     }),
-    'vertex': new Style({
-      image: new Circle({
-        radius: 3,
-        fill: new Fill({ color: 'white' }),
-        stroke: new Stroke({
-          color: 'blue',
-          width: 2,
-        }),
-      }),
-    }),
-    'polygon': new Style({
+    'cell': new Style({
       stroke: new Stroke({
-        color: 'blue',
+        color: 'red',
         width: 3,
       }),
       fill: new Fill({
-        color: 'rgba(0, 0, 255, 0.1)',
-      })
+        color: 'rgba(255, 0, 0, 0.1)',
+      }),
     }),
   }
 
   return new VectorLayer({
     source: new VectorSource({
-      features: [bboxPoly, ...voronoiCells, ...markers, ...points],
+      features: [...cells, ...stationMarkers],
     }),
     style: function (feature) {
       return styles[feature.get('type')];
