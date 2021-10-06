@@ -8,6 +8,7 @@
     "start": "PORT=3000 parcel serve index.html"
   },
   "dependencies": {
+    "d3-delaunay": "^6.0.2",
     "ol": "^6.8.1"
   },
   "devDependencies": {
