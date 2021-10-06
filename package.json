@@ -1,0 +1,16 @@
+{
+  "name": "yvr-voronoi",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "parcel serve index.html"
+  },
+  "dependencies": {
+    "ol": "^6.8.1"
+  },
+  "devDependencies": {
+    "parcel": "^2.0.0-rc.0"
+  }
+}
