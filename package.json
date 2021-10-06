@@ -5,7 +5,7 @@
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
-    "start": "parcel serve index.html"
+    "start": "PORT=3000 parcel serve index.html"
   },
   "dependencies": {
     "ol": "^6.8.1"
